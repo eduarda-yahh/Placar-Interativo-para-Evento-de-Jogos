@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Placar Interativo</title>
+    <style>
+      :root {
+        --bg: #0f1724;
+        --card: #0b1220;
+        --accent: #06b6d4;
+        --muted: #94a3b8;
+        --glass: rgba(255, 255, 255, 0.03);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, -apple-system, Roboto, "Segoe UI", Arial;
+        color: #e6eef6;
+        background: linear-gradient(180deg, #041024 0%, #07132a 60%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+      }
+      .app {
+        width: 100%;
+        max-width: 1100px;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 18px;
+      }
+      header h1 {
+        margin: 0;
+        font-size: 20px;
+      }
+      .top-row {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .board {
+        display: grid;
+        grid-template-columns: 1fr 380px;
+        gap: 18px;
+      }
+      @media (max-width: 880px) {
+        .board {
+          grid-template-columns: 1fr;
+        }
+        .controls {
+          order: 2;
+        }
+      }
+
+      .card {
+        background: var(--card);
+        padding: 16px;
+        border-radius: 12px;
+        box-shadow: 0 6px 18px rgba(2, 6, 23, 0.6);
+      }
+      .teams {
+        display: flex;
+        gap: 12px;
+        align-items: stretch;
+      }
+      .team {
+        flex: 1;
+        padding: 12px;
+        border-radius: 10px;
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.02),
+          rgba(0, 0, 0, 0.04)
+        );
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .team .name {
+        font-weight: 700;
+        font-size: 18px;
+        margin-bottom: 8px;
+      }
+      .score {
+        font-size: 48px;
+        font-weight: 800;
+        letter-spacing: 1px;
+        margin: 6px 0;
+      }
+      .controls-row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      button {
+        border: 0;
+        padding: 8px 14px;
+        border-radius: 8px;
+        cursor: pointer;
+        background: var(--glass);
+        color: var(--muted);
+      }
+      button.positive {
+        background: linear-gradient(90deg, #10b981, #06b6d4);
+        color: #042022;
+      }
+      button.negative {
+        background: linear-gradient(90deg, #ef4444, #fb923c);
+        color: white;
+      }
+      .small {
+        font-size: 14px;
+        padding: 6px 10px;
+      }
+
+      .right-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .history {
+        max-height: 420px;
+        overflow: auto;
+        padding: 8px;
+        border-radius: 8px;
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.015),
+          rgba(0, 0, 0, 0.03)
+        );
+      }
+      .evt {
+        padding: 8px;
+        border-bottom: 1px dashed rgba(255, 255, 255, 0.03);
+        font-size: 14px;
+        color: var(--muted);
+      }
+      .evt strong {
+        color: #fff;
+      }
+
+      form.inline {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      input[type="text"],
+      select {
+        padding: 8px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.03);
+        background: transparent;
+        color: inherit;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      footer {
+        margin-top: 12px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .reset {
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        color: var(--muted);
+        padding: 8px 10px;
+        border-radius: 8px;
+      }
+
+      .hint {
+        font-size: 13px;
+        color: var(--muted);
+        margin-top: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <header>
+        <h1>Placar Interativo — Evento de Jogos</h1>
+        <div class="top-row">
+          <div id="matchClock" class="hint">00:00:00</div>
+        </div>
+      </header>
+
+      <main class="board">
+        <section class="card main-area">
+          <div class="teams" id="teamsContainer"></div>
+
+          <div
+            style="
+              margin-top: 14px;
+              display: flex;
+              justify-content: space-between;
+              flex-wrap: wrap;
+              gap: 8px;
+              align-items: center;
+            "
+          >
+            <div class="row">
+              <form id="teamForm" class="inline">
+                <select id="selectLeft"></select>
+                <select id="selectRight"></select>
+                <input
+                  id="newTeamInput"
+                  type="text"
+                  placeholder="Cadastrar time (Ex: Dragões)"
+                />
+                <button id="addTeamBtn" class="small" type="button">
+                  Adicionar
+                </button>
+              </form>
+            </div>
+
+            <div class="actions">
+              <button id="swapBtn" class="small" title="Trocar lados">
+                Trocar lados
+              </button>
+              <button id="resetBtn" class="reset">Resetar placar</button>
+            </div>
+          </div>
+
+          <div class="hint">
+            Use os botões +1, +2 e -1 para ajustar a pontuação. Cada alteração
+            gera um registro no histórico com timestamp.
+          </div>
+        </section>
+
+        <aside class="right-panel">
+          <div class="card">
+            <h3 style="margin: 0 0 8px 0">Histórico de eventos</h3>
+            <div id="history" class="history" aria-live="polite"></div>
+            <div
+              style="
+                margin-top: 8px;
+                display: flex;
+                gap: 8px;
+                justify-content: flex-end;
+              "
+            >
+              <button id="clearHistoryBtn" class="small">
+                Limpar histórico
+              </button>
+            </div>
+          </div>
+
+          <div class="card controls">
+            <h3 style="margin: 0 0 8px 0">Controles rápidos</h3>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap">
+              <button id="quickPlus1" class="small positive">
+                +1 (Equipe selecionada)
+              </button>
+              <button id="quickPlus2" class="small positive">
+                +2 (Equipe selecionada)
+              </button>
+              <button id="quickMinus1" class="small negative">
+                -1 (Equipe selecionada)
+              </button>
+            </div>
+            <div style="margin-top: 8px">
+              <label style="font-size: 13px; color: var(--muted)"
+                >Equipe para controles rápidos:</label
+              >
+              <select
+                id="quickSelect"
+                style="width: 100%; margin-top: 6px"
+              ></select>
+            </div>
+          </div>
+        </aside>
+      </main>
+
+      <footer>
+        Dicas: abra em tela cheia para eventos. Para publicar no GitHub Pages,
+        coloque este arquivo como index.html no repositório e ative Pages.
+      </footer>
+    </div>
+
+    <script>
+      const SAMPLE_TEAMS = ["Equipe A", "Equipe B", "Dragões", "Trovões"];
+      const LS_TEAMS = "placar_teams_v1";
+      const LS_STATE = "placar_state_v1";
+
+      let teams = [];
+      let history = [];
+
+      // Elementos
+      const teamsContainer = document.getElementById("teamsContainer");
+      const selectLeft = document.getElementById("selectLeft");
+      const selectRight = document.getElementById("selectRight");
+      const newTeamInput = document.getElementById("newTeamInput");
+      const addTeamBtn = document.getElementById("addTeamBtn");
+      const historyEl = document.getElementById("history");
+      const resetBtn = document.getElementById("resetBtn");
+      const clearHistoryBtn = document.getElementById("clearHistoryBtn");
+      const swapBtn = document.getElementById("swapBtn");
+      const quickSelect = document.getElementById("quickSelect");
+      const quickPlus1 = document.getElementById("quickPlus1");
+      const quickPlus2 = document.getElementById("quickPlus2");
+      const quickMinus1 = document.getElementById("quickMinus1");
+      const matchClock = document.getElementById("matchClock");
+
+      const uid = (n = 6) =>
+        Math.random()
+          .toString(36)
+          .slice(2, 2 + n);
+      const timeNow = () => {
+        const d = new Date();
+        const pad = (s) => String(s).padStart(2, "0");
+        return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(
+          d.getSeconds()
+        )}`;
+      };
+
+      function load() {
+        const savedTeams = JSON.parse(localStorage.getItem(LS_TEAMS) || "null");
+        const savedState = JSON.parse(localStorage.getItem(LS_STATE) || "null");
+        if (savedTeams && Array.isArray(savedTeams) && savedTeams.length)
+          teams = savedTeams;
+        else
+          teams = SAMPLE_TEAMS.map((name) => ({ id: uid(8), name, score: 0 }));
+        if (savedState) {
+          history = savedState.history || [];
+          if (savedState.scores) {
+            for (const t of teams) {
+              if (savedState.scores[t.id] !== undefined)
+                t.score = savedState.scores[t.id];
+            }
+          }
+        }
+      }
+
+      function save() {
+        localStorage.setItem(LS_TEAMS, JSON.stringify(teams));
+        const scores = {};
+        teams.forEach((t) => (scores[t.id] = t.score));
+        localStorage.setItem(LS_STATE, JSON.stringify({ scores, history }));
+      }
+
+      function renderTeams() {
+        teamsContainer.innerHTML = "";
+        for (const t of teams) {
+          const div = document.createElement("div");
+          div.className = "team card-item";
+          div.innerHTML = `
+          <div class="name">${escapeHtml(t.name)}</div>
+          <div class="score" id="score_${t.id}">${t.score}</div>
+          <div class="controls-row">
+            <button data-team="${
+              t.id
+            }" data-delta="1" class="small positive">+1</button>
+            <button data-team="${
+              t.id
+            }" data-delta="2" class="small positive">+2</button>
+            <button data-team="${
+              t.id
+            }" data-delta="-1" class="small negative">-1</button>
+          </div>
+        `;
+          teamsContainer.appendChild(div);
+        }
+        attachTeamButtons();
+        fillSelects();
+      }
+
+      function fillSelects() {
+        [selectLeft, selectRight, quickSelect].forEach((sel) => {
+          sel.innerHTML = "";
+          teams.forEach((t) => {
+            const opt = document.createElement("option");
+            opt.value = t.id;
+            opt.textContent = t.name;
+            sel.appendChild(opt);
+          });
+        });
+        if (selectLeft.value === selectRight.value && teams.length > 1)
+          selectRight.selectedIndex = Math.min(1, teams.length - 1);
+      }
+
+      function attachTeamButtons() {
+        document.querySelectorAll("[data-team]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const id = btn.getAttribute("data-team");
+            const delta = Number(btn.getAttribute("data-delta"));
+            applyScore(id, delta);
+          });
+        });
+      }
+
+      function applyScore(teamId, delta) {
+        const t = teams.find((x) => x.id === teamId);
+        if (!t) return;
+        t.score = Math.max(-9999, t.score + delta);
+        const el = document.getElementById("score_" + teamId);
+        if (el) el.textContent = t.score;
+        const entry = { time: timeNow(), team: t.name, delta, total: t.score };
+        history.unshift(entry); // show newest on top
+        if (history.length > 200) history.pop();
+        renderHistory();
+        save();
+      }
+
+      function renderHistory() {
+        historyEl.innerHTML = history
+          .map(
+            (h) =>
+              `<div class="evt"><strong>${h.time}</strong> — ${escapeHtml(
+                h.team
+              )} marcou ${
+                h.delta > 0 ? `+${h.delta}` : h.delta
+              } — total: <strong>${h.total}</strong></div>`
+          )
+          .join("");
+      }
+
+      addTeamBtn.addEventListener("click", () => {
+        const name = newTeamInput.value.trim();
+        if (!name) return alert("Digite o nome do time para cadastrar.");
+        if (teams.some((t) => t.name.toLowerCase() === name.toLowerCase())) {
+          alert("Time já cadastrado.");
+          newTeamInput.value = "";
+          return;
+        }
+        const n = { id: uid(8), name, score: 0 };
+        teams.push(n);
+        newTeamInput.value = "";
+        renderTeams();
+        save();
+      });
+
+      resetBtn.addEventListener("click", () => {
+        if (!confirm("Confirmar reset do placar e histórico?")) return;
+        teams.forEach((t) => (t.score = 0));
+        history = [];
+        renderTeams();
+        renderHistory();
+        save();
+      });
+
+      clearHistoryBtn.addEventListener("click", () => {
+        if (!confirm("Limpar apenas o histórico de eventos?")) return;
+        history = [];
+        renderHistory();
+        save();
+      });
+
+      swapBtn.addEventListener("click", () => {
+        const l = selectLeft.selectedIndex;
+        selectLeft.selectedIndex = selectRight.selectedIndex;
+        selectRight.selectedIndex = l;
+      });
+
+      quickPlus1.addEventListener("click", () => {
+        const id = quickSelect.value;
+        applyScore(id, 1);
+      });
+      quickPlus2.addEventListener("click", () => {
+        const id = quickSelect.value;
+        applyScore(id, 2);
+      });
+      quickMinus1.addEventListener("click", () => {
+        const id = quickSelect.value;
+        applyScore(id, -1);
+      });
+
+      function escapeHtml(str) {
+        return String(str).replace(
+          /[&<>"]+/g,
+          (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m])
+        );
+      }
+
+      setInterval(() => {
+        matchClock.textContent = new Date().toLocaleTimeString();
+      }, 1000);
+
+      load();
+      renderTeams();
+      renderHistory();
+
+      window._placar = { teams, history, applyScore, renderTeams };
+    </script>
+  </body>
+</html>
